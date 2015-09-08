@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Simboy</title>
+    <script src="js/phaser.min.js"></script>
+    <style>
+        body { margin: 0; background-color: #ffffff; }
+        @font-face {
+            font-family: 'Simboy';
+            src: url('assets/fonts/fzjc.TTF');
+        }
+    </style>
+</head>
+<body>
+<script type="text/javascript">
+
+    var game = new Phaser.Game(document.body.scrollWidth, document.body.scrollHeight, Phaser.CANVAS, 'Simboy', { preload: preload, create: create, render: render });
+
+    function preload() {
+        game.load.bitmapFont('nokia16black', 'assets/fonts/bitmapFonts/nokia16black.png', 'assets/fonts/bitmapFonts/nokia16black.xml');
+        game.load.image('info', 'assets/sprites/info.jpg');
+    }
+
+    var clickMe;
+    var title;
+    var info;
+    var backgroundCount = 0;
+    var addActionCount = 0;
+    var newPatient;
+    var version;
+    var table;
+    var lines = [];
+    var simboy;
+    var simboyLevel = 0;
+    var simboyJudge;
+    var simboyAvg;
+    var chinese = [];
+    var chineseJudge = [];
+    var bpmText;
+    var text;
+    var rate = 0;
+    var avgRate = 0;
+    var sumRate = 0;
+    var level = ["Zero", "One", "Two", "Three", "Four", "Five", "MAX"];
+    var name1 = ["James", "John", "David", "Daniel", "Bill", "Jane", "Mary", "Elizabeth", "Ann", "Sarah", "Catherine"];
+    var name2 = ["Gates", "Cook", "Green", "Hill", "Wood", "Brown", "Bush", "Bird", "Fox", "Kent"];
+    var re = [];
+    var brain = [];
+    var count = 1;
+    var state;
+    var bestTreatment;
+    var action;
+    var reward;
+
+    function create() {
+        game.stage.setBackgroundColor(0xffffff);
+        title = game.add.text(game.world.centerX, 0.9*game.world.centerY, "Simboy", { font: "98px Courier", align: "center" });
+        title.anchor.set(0.5);
+        title.inputEnabled = true;
+        clickMe = game.add.text(game.world.centerX, 1.1*game.world.centerY, "start", { font: "48px Courier", align: "center" });
+        clickMe.anchor.set(0.5);
+        clickMe.inputEnabled = true;
+        clickMe.events.onInputDown.addOnce(start, this);
+    }
+    function start(item) {
+        item.text = "";
+        title.text = "";
+        game.time.events.repeat(50, 1, showInfo, this);
+    }
+    function showInfo() {
+        info = game.add.sprite(game.world.centerX, game.world.centerY, 'info', "center");
+        info.x = info.x-info.width/2;
+        info.y = info.y-info.height/2;
+        game.input.onDown.addOnce(simStart, this);
+    }
+    function changeBackground() {
+        backgroundCount++;
+        if (backgroundCount%2 == 1) { game.stage.setBackgroundColor(0x000000) }
+        else { game.stage.setBackgroundColor(0xffffff) }
+    }
+    function simStart() {
+        info.kill();
+        game.time.events.repeat(50, 8, changeBackground, this);
+        lines.push(new Phaser.Line(0.2*game.world.centerX, 1.0*game.world.centerY, 1.8*game.world.centerX, 1.0*game.world.centerY));
+        lines.push(new Phaser.Line(0.6*game.world.centerX, 1.56*game.world.centerY, 1.4*game.world.centerX, 1.56*game.world.centerY));
+        chinese.push(game.add.bitmapText(0.2*game.world.centerX, 0.4*game.world.centerY, 'nokia16black','Old Chinese\nLevel MAX', 28));
+        chinese.push(game.add.bitmapText(0.2*game.world.centerX, 0.6*game.world.centerY, 'nokia16black','Old Chinese\nLevel One', 28));
+        chinese.push(game.add.bitmapText(0.2*game.world.centerX, 0.8*game.world.centerY, 'nokia16black','Chinese\nNewbie', 28));
+        chineseJudge.push(game.add.text(0.8*game.world.centerX, 0.4*game.world.centerY, "waiting for a new patient...", { font: "24px Courier", align: "left" }));
+        chineseJudge.push(game.add.text(0.8*game.world.centerX, 0.6*game.world.centerY, "waiting for a new patient...", { font: "24px Courier", align: "left" }));
+        chineseJudge.push(game.add.text(0.8*game.world.centerX, 0.8*game.world.centerY, "waiting for a new patient...", { font: "24px Courier", align: "left" }));
+        simboy = game.add.bitmapText(0.6*game.world.centerX, 1.06*game.world.centerY, 'nokia16black','', 28);
+        simboyAvg = game.add.bitmapText(0.6*game.world.centerX, 1.13*game.world.centerY, 'nokia16black','', 28);
+        simboy.text = "Simboy: Level "+level[simboyLevel];
+        simboyAvg.text = "Average Cure Rate: "+avgRate;
+        simboyJudge = game.add.text(0.6*game.world.centerX, 1.23*game.world.centerY, "waiting for a new patient...", { font: "23px Courier", align: "left" });
+        bmpText = game.add.bitmapText(0.2*game.world.centerX, 0.08*game.world.centerY, 'nokia16black','', 36);
+        bmpText.maxWidth = 400;
+        bmpText.inputEnabled = true;
+        bmpText.text = "Press \"Creat a new patient\nwith random information\"\nto start simulation...";
+        table = game.add.text(0.2*game.world.centerX, 0.18*game.world.centerY, "", { font: "23px Courier", align: "left" });
+        table.inputEnabled = true;
+        newPatient = game.add.text(game.world.centerX, 1.7*game.world.centerY, "Creat a new patient\n with random information", { font: "38px Courier", align: "center" });
+        newPatient.anchor.set(0.5);
+        newPatient.inputEnabled = true;
+        newPatient.events.onInputDown.add(newPatientSim, this);
+        version = game.add.text(game.world.centerX, 1.9*game.world.centerY, "Version 1.0", { font: "28px Courier", align: "center" });
+        version.anchor.set(0.5);
+    }
+    function abs(x) {
+        return x >= 0 ? x : -x;
+    }
+    function newPatientSim() {
+        gender = Math.floor(Math.random()*2);
+        age = 10+Math.floor(Math.random()*81);
+        name = "";
+        if (gender == 0) { name += name1[Math.floor(Math.random()*5)] }
+        else { name += name1[5+Math.floor(Math.random()*5)] }
+        name += " "+name2[Math.floor(Math.random()*10)];
+        state = [name, gender, Math.floor(age/10)-1];
+        state.push(Math.floor(Math.random()*3));
+        state.push(Math.floor(Math.random()*5));
+        stateName1 = ["Male", "Female"];
+        stateName2 = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9"];
+        stateName3 = ["Good", "Normal", "Bad"];
+        stateName4 = ["Hand", "Foot", "Face", "Heart", "Brain"];
+        action = [];
+        reward = [];
+        action.push([state[1], state[2], state[3], state[4]]);
+        reward.push([0, 0, 0, 0]);
+        bestTreatment = action[0][0]+action[0][1]+action[0][2]+actgion[0][3]*12;
+        bmpText.text = "Here comes a new patient !";
+        table.text = "";
+        action.push([action[0][0], Math.floor(Math.random()*9), action[0][2], action[0][3]]);
+        action.push([action[0][0], Math.floor(Math.random()*9), Math.floor(Math.random()*3), action[0][3]]);
+        action.push([Math.floor(Math.random()*2), Math.floor(Math.random()*9), Math.floor(Math.random()*3), Math.floor(Math.random()*5)]);
+        reward.push([-abs(action[1][0]-action[0][0]), -abs(action[1][1]-action[0][1]), -abs(action[1][2]-action[0][2]), -abs(action[1][3]-action[0][3])]);
+        reward.push([-abs(action[2][0]-action[0][0]), -abs(action[2][1]-action[0][1]), -abs(action[2][2]-action[0][2]), -abs(action[2][3]-action[0][3])]);
+        reward.push([-abs(action[3][0]-action[0][0]), -abs(action[3][1]-action[0][1]), -abs(action[3][2]-action[0][2]), -abs(action[3][3]-action[0][3])]);
+        if (count == 1) {
+            for (var i = 0; i < 4; i++) {
+                re.push([]);
+                brain.push([]);
+            }
+            for (var i = 0; i < 2; i++) {
+                brain[0].push(Math.floor(Math.random()*2));
+                re[0].push(-9);
+            }
+            for (var i = 0; i < 9; i++) {
+                brain[1].push(Math.floor(Math.random()*9));
+                re[1].push(-9);
+            }
+            for (var i = 0; i < 3; i++) {
+                brain[2].push(Math.floor(Math.random()*3));
+                re[2].push(-9);
+            }
+            for (var i = 0; i < 5; i++) {
+                brain[3].push(Math.floor(Math.random()*5));
+                re[3].push(-9);
+            }
+        }
+        else {
+            for (var i = 0; i < 4; i++) {
+                if (reward[1][i] > re[i][state[i+1]]) {
+                    brain[i][state[i+1]] = action[1][i];
+                    re[i][state[i+1]] = reward[1][i];
+                    if (reward[2][i] > reward[1][i]) {
+                        brain[i][state[i+1]] = action[2][i];
+                        re[i][state[i+1]] = reward[2][i];
+                    }
+                    if (reward[3][i] > reward[1][i]) {
+                        brain[i][state[i+1]] = action[3][i];
+                        re[i][state[i+1]] = reward[3][i];
+                    }
+                }
+            }
+        }
+        count += 1;
+        game.time.events.repeat(100, 10, addAction, this);
+        addActionCount = 0;
+    }
+    function addAction() {
+        if (addActionCount == 0) {
+            table.text = "Name: "+state[0]+"    Gender: "+stateName1[state[1]]+"    Age: "+(10*(state[2]+1)+Math.floor(Math.random()*10));
+        }
+        if (addActionCount == 1) {
+            table.text += "\nPulse: "+stateName3[state[3]]+"        Disease: "+stateName4[state[4]];
+        }
+        if (addActionCount == 2) {
+            table.text += "\nBest Treatment: Method"+bestTreatment;
+        }
+        if (addActionCount == 3) {
+            for (var i = 0, l = chineseJudge.length; i < l; i++) {
+                chineseJudge[i].text = "Treatment: ";
+            }
+            simboyJudge.text = "Treatment: ";
+        }
+        if (addActionCount == 4) {
+            for (var i = 0, l = chineseJudge.length; i < l; i++) {
+                chineseJudge[i].text += "Method"+(action[i+1][0]+action[i+1][1]+action[i+1][2]+action[i+1][3]*12);
+            }
+            simboyJudge.text += "Method"+(brain[0][state[1]]+brain[1][state[2]]+brain[2][state[3]]+brain[3][state[4]]*12);
+        }
+        if (addActionCount == 5) {
+            for (var i = 0, l = chineseJudge.length; i < l; i++) {
+                chineseJudge[i].text += "\nLearning Rewards: ";
+            }
+            simboyJudge.text += "\nNetwork Learning Detail:\n";
+        }
+        if (addActionCount == 6) {
+            for (var i = 0, l = chineseJudge.length; i < l; i++) {
+                chineseJudge[i].text += reward[i+1];
+            }
+            simboyJudge.text += re[0]+","+re[1]+"\n"+re[2]+","+re[3];
+        }
+        if (addActionCount == 7) {
+            for (var i = 0, l = chineseJudge.length; i < l; i++) {
+                chineseJudge[i].text += "\nCure Rate: ";
+            }
+            simboyJudge.text += "\n\nCure Rate: ";
+        }
+        if (addActionCount == 8) {
+            for (var i = 0, l = chineseJudge.length; i < l; i++) {
+                cureRate = 1+(reward[i+1][0]/1+reward[i+1][1]/8+reward[i+1][2]/2+reward[i+1][3]/4)/4;
+                chineseJudge[i].text += cureRate;
+            }
+            rate = 1+(re[0][state[1]]/1+re[1][state[2]]/8+re[2][state[3]]/2+re[3][state[4]]/4)/4;
+            if (rate < 0) { rate = 0 }
+            simboyJudge.text += rate;
+            sumRate += rate;
+            avgRate = sumRate/(count-1);
+            if (avgRate < 0.5) { simboyLevel = 0 }
+            else if (avgRate >= 0.5 && avgRate < 0.7) { simboyLevel = 1 }
+            else if (avgRate >= 0.7 && avgRate < 0.75) { simboyLevel = 2 }
+            else if (avgRate >= 0.75 && avgRate < 0.8) { simboyLevel = 3 }
+            else if (avgRate >= 0.8 && avgRate < 0.85) { simboyLevel = 4 }
+            else if (avgRate >= 0.85 && avgRate < 0.9) { simboyLevel = 5 }
+            else if (avgRate >= 0.9) { simboyLevel = 6 }
+            simboy.text = "Simboy: Level "+level[simboyLevel];
+            simboyAvg.text = "Average Cure Rate: "+(avgRate+"").substring(0, (avgRate+"").indexOf(".") + 5);
+        }
+        addActionCount += 1;
+    }
+    function render() {
+        for (var i = 0, l = lines.length; i < l; i++) {
+            game.debug.geom(lines[i], '#222222');
+        }
+
+    }
+
+</script>
+
+</body>
+</html>
